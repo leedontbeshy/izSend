@@ -138,6 +138,13 @@ Copy `.env.example` to `.env` and fill in the values:
 
 **Upload size limit**: hard-capped at **50MB** in `apps/api/src/env.ts`.
 
+### Backend (production)
+
+In production you typically **do not** ship a `.env` file. Set environment variables in your host (e.g. Render).
+
+- Production template: `.env.production.example` (do not put secrets in git)
+- The API code reads `process.env` and will work without a `.env` file
+
 #### Example: AWS S3
 
 ```bash
@@ -182,6 +189,14 @@ cp apps/web/.env.example apps/web/.env
 | Variable | Required | Default | Description |
 |---|---:|---:|---|
 | `VITE_API_BASE_URL` | no | `http://localhost:3000` | Base URL for the API |
+
+### Frontend (production)
+
+On Vercel, set:
+
+- `VITE_API_BASE_URL` = your deployed API URL (Render)
+
+Production template: `apps/web/.env.production.example`
 
 ## Scripts
 
@@ -274,18 +289,37 @@ It runs once on startup and then every `CLEANUP_INTERVAL_MINUTES` (default: 60).
 
 ## Deployment notes
 
-This repo does not include Docker manifests yet. A typical production setup looks like:
+This repo does not include Docker manifests yet. A common setup is:
 
-- `apps/api` running behind a reverse proxy (or directly with a process manager)
-- `apps/web` built as static assets and served via CDN / Nginx / any static host
+- **Backend** on Render: `apps/api`
+- **Frontend** on Vercel: `apps/web`
 - S3-compatible object storage + Neon Postgres
 
 Minimum production checklist:
 
 - Keep `.env` out of git (already in `.gitignore`)
 - Use a dedicated S3 bucket with least-privilege credentials
-- Set `WEB_ORIGIN` to your real frontend URL
+- Set `WEB_ORIGIN` to your real frontend URL (Vercel origin)
 - Consider tightening rate limits
+
+### Quick deploy (Render + Vercel)
+
+1) Deploy API to Render
+
+- Build: `npm ci && npm run build --workspace apps/api`
+- Start: `npm run start --workspace apps/api`
+- Set env vars (see `.env.production.example`)
+
+2) Deploy Web to Vercel
+
+- Root directory: `apps/web`
+- Set `VITE_API_BASE_URL` to your Render API URL
+
+3) Update API CORS
+
+- Set Render `WEB_ORIGIN` to your Vercel URL
+
+> Tip: you can keep a personal deploy checklist in `docs/DEPLOY_PRIVATE.md` (gitignored).
 
 ## Troubleshooting
 

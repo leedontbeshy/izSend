@@ -1,5 +1,13 @@
-﻿# secrets
+# secrets
 .env
+.env.*
+!.env.example
+!.env.production.example
+
+apps/**/.env
+apps/**/.env.*
+!apps/**/.env.example
+!apps/**/.env.production.example
 
 # node
 node_modules/
@@ -21,3 +29,6 @@ apps/**/.turbo/
 
 .codex
 design-system\izsend
+
+# private deploy notes
+docs/DEPLOY_PRIVATE.md
