@@ -13,11 +13,11 @@ izSend is a simple, self-hostable file sharing app with:
 
 ### Screenshots 
 
-```md
+
 ![Upload page](docs/assets/upload-page.png)
 ![Upload page](docs/assets/Screenshot%202026-04-16%20201515.png)
 ![Download page](docs/assets/Screenshot%202026-04-16%20201547.png)
-```
+
 
 ## Table of contents
 
