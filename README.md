@@ -314,6 +314,7 @@ Minimum production checklist:
 
 - Root directory: `apps/web`
 - Set `VITE_API_BASE_URL` to your Render API URL
+- Ensure SPA rewrites are enabled for React Router (this repo includes `apps/web/vercel.json`)
 
 3) Update API CORS
 
