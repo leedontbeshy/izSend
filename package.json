@@ -1,0 +1,18 @@
+{
+  "name": "izsend",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm:dev --workspace apps/api\" \"npm:dev --workspace apps/web\"",
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:web": "npm run dev --workspace apps/web",
+    "build": "npm run build --workspaces",
+    "start": "npm run start --workspace apps/api",
+    "db:init": "npm run db:init --workspace apps/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

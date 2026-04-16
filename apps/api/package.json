@@ -1,0 +1,32 @@
+{
+  "name": "@izsend/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "db:init": "tsx scripts/dbInit.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.848.0",
+    "@aws-sdk/lib-storage": "^3.848.0",
+    "@aws-sdk/s3-request-presigner": "^3.848.0",
+    "@fastify/cors": "^10.0.0",
+    "@fastify/multipart": "^9.0.0",
+    "@fastify/rate-limit": "^10.0.0",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.6.1",
+    "fastify": "^5.3.3",
+    "nanoid": "^5.1.5",
+    "pg": "^8.16.3",
+    "zod": "^4.1.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.15.21",
+    "@types/pg": "^8.15.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.8.3"
+  }
+}
