@@ -7,6 +7,18 @@ izSend is a simple, self-hostable file sharing app with:
 - Optional **passcode** (protects link, code, and QR)
 - Auto-expiration after **7 days** (expired objects are deleted from storage)
 
+## Demo
+
+- Live site: `https://izsend.vercel.app/` 
+
+### Screenshots 
+
+```md
+![Upload page](docs/assets/upload-page.png)
+![Upload page](docs/assets/Screenshot%202026-04-16%20201515.png)
+![Download page](docs/assets/Screenshot%202026-04-16%20201547.png)
+```
+
 ## Table of contents
 
 - [Features](#features)
