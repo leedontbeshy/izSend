@@ -1,4 +1,4 @@
-﻿export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export type FileMetadata = {
   id: string;
@@ -11,6 +11,18 @@ export type FileMetadata = {
   requiresPasscode: boolean;
 };
 
+export type UploadResult = FileMetadata & {
+  share: {
+    slugPath: string;
+  };
+};
+
+// Issue #7: public config endpoint response type
+export type PublicConfig = {
+  maxFileSizeBytes: number;
+  fileTtlDays: number;
+};
+
 async function readJson(res: Response) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -20,7 +32,12 @@ async function readJson(res: Response) {
   return data;
 }
 
-export async function uploadFile(params: { file: File; passcode?: string }) {
+export async function getPublicConfig(): Promise<PublicConfig> {
+  const res = await fetch(`${API_BASE_URL}/api/config`);
+  return readJson(res) as Promise<PublicConfig>;
+}
+
+export async function uploadFile(params: { file: File; passcode?: string }): Promise<UploadResult> {
   const form = new FormData();
   form.append("file", params.file);
   if (params.passcode) form.append("passcode", params.passcode);
@@ -30,14 +47,7 @@ export async function uploadFile(params: { file: File; passcode?: string }) {
     body: form
   });
 
-  return readJson(res) as Promise<
-    FileMetadata & {
-      share: {
-        slugPath: string;
-        codePath: string;
-      };
-    }
-  >;
+  return readJson(res) as Promise<UploadResult>;
 }
 
 export async function getBySlug(slug: string) {

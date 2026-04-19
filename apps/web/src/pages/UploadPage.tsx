@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import { formatBytes, uploadFile } from "../api";
+import { formatBytes, getPublicConfig, uploadFile, type PublicConfig, type UploadResult } from "../api";
 import { CopyButton } from "../components/CopyButton";
 import {
   CheckIcon,
@@ -22,7 +22,24 @@ export function UploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string>("");
-  const [result, setResult] = useState<any>(null);
+  // Issue #9: typed upload result (no more `any`)
+  const [result, setResult] = useState<UploadResult | null>(null);
+  // Issue #7: load limits from API
+  const [config, setConfig] = useState<PublicConfig | null>(null);
+
+  useEffect(() => {
+    getPublicConfig()
+      .then(setConfig)
+      .catch(() => {
+        // Non-fatal: fall back to hard-coded display defaults if the endpoint
+        // is unreachable (e.g. during development without the API running).
+      });
+  }, []);
+
+  const maxFileMB = config
+    ? Math.round(config.maxFileSizeBytes / (1024 * 1024))
+    : 50;
+  const ttlDays = config?.fileTtlDays ?? 7;
 
   const shareSlugUrl = useMemo(() => {
     if (!result?.share?.slugPath) return "";
@@ -63,7 +80,7 @@ export function UploadPage() {
       <div className="page">
         <div>
           <h1 className="hero-title">{t("heroTitle")}</h1>
-          <p className="hero-sub">{t("heroSubtitle")}</p>
+          <p className="hero-sub">{t("heroSubtitle", { maxFileMB, ttlDays })}</p>
 
           <div className="feature-list">
             <div className="feature">
@@ -91,24 +108,25 @@ export function UploadPage() {
                 <CheckIcon />
               </div>
               <div>
-                <h3>{t("featureTtlTitle")}</h3>
+                <h3>{t("featureTtlTitle", { ttlDays })}</h3>
                 <p>{t("featureTtlBody")}</p>
               </div>
             </div>
           </div>
 
+          {/* Issue #1: "E2E ENCRYPTION" replaced with "TLS" (accurate) */}
           <div className="stats">
             <div className="stat">
-              <strong>50MB</strong>
+              <strong>{maxFileMB}MB</strong>
               <span>FILE SIZE</span>
             </div>
             <div className="stat">
-              <strong>7 days</strong>
+              <strong>{ttlDays} days</strong>
               <span>STORAGE TIME</span>
             </div>
             <div className="stat">
-              <strong>E2E</strong>
-              <span>ENCRYPTION</span>
+              <strong>TLS</strong>
+              <span>SECURE TRANSFER</span>
             </div>
           </div>
         </div>
@@ -117,7 +135,7 @@ export function UploadPage() {
           <div className="section-head">
             <div>
               <div className="section-title">{t("tabUpload")}</div>
-              <div className="section-subtitle">{t("heroSubtitle")}</div>
+              <div className="section-subtitle">{t("heroSubtitle", { maxFileMB, ttlDays })}</div>
             </div>
             {(file || result) ? (
               <button type="button" className="button" onClick={resetUploadState}>
@@ -127,6 +145,11 @@ export function UploadPage() {
           </div>
 
           <div style={{ height: 14 }} />
+
+          {/* Issue #13: aria-live region for async upload feedback */}
+          <div aria-live="polite" aria-atomic="true" className="sr-only">
+            {isUploading ? t("uploading") : result ? t("ready") : error || ""}
+          </div>
 
           <div className="upload-shell">
             {result ? (
@@ -292,7 +315,7 @@ export function UploadPage() {
             )}
           </div>
 
-          {error ? <div className="error" style={{ marginTop: 12 }}>{error}</div> : null}
+          {error ? <div className="error" role="alert" style={{ marginTop: 12 }}>{error}</div> : null}
         </div>
       </div>
     </div>

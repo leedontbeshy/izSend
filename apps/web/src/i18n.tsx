@@ -43,6 +43,9 @@ type DictKey =
   | "tabUpload"
   | "browseFiles";
 
+// Template values accepted by t(); keys that contain placeholders use them.
+type DictParams = Record<string, string | number>;
+
 const dict: Record<DictKey, string> = {
   brandTagline: "Share files fast, auto-expire in 7 days",
   uploadCta: "Upload",
@@ -50,7 +53,7 @@ const dict: Record<DictKey, string> = {
   enterCode: "Enter code...",
   go: "Go",
   heroTitle: "Send a file in seconds",
-  heroSubtitle: "Up to 50MB. Auto-expire after 7 days. Optional passcode protects files",
+  heroSubtitle: "Up to {maxFileMB}MB. Auto-expire after {ttlDays} days. Optional passcode protects files",
   pickFileTitle: "Pick a file to upload",
   pickFileHint: "Drag and drop or click to choose a file.",
   passcodeOptional: "Passcode (optional)",
@@ -81,20 +84,31 @@ const dict: Record<DictKey, string> = {
   featureInstantBody: "Share with a link, a code, or a QR in seconds.",
   featurePasscodeTitle: "Optional passcode",
   featurePasscodeBody: "Only people with the passcode can create a download link.",
-  featureTtlTitle: "7-day storage",
+  featureTtlTitle: "{ttlDays}-day storage",
   featureTtlBody: "Files expire automatically and are removed from storage.",
   tabUpload: "Upload file",
   browseFiles: "Browse files"
 };
 
+function interpolate(template: string, params?: DictParams): string {
+  if (!params) return template;
+  return template.replace(/\{(\w+)\}/g, (_, key) =>
+    key in params ? String(params[key]) : `{${key}}`
+  );
+}
+
 type I18nCtx = {
-  t: (key: DictKey) => string;
+  t: (key: DictKey, params?: DictParams) => string;
 };
 
 const I18nContext = createContext<I18nCtx | null>(null);
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  return <I18nContext.Provider value={{ t: (key) => dict[key] }}>{children}</I18nContext.Provider>;
+  return (
+    <I18nContext.Provider value={{ t: (key, params) => interpolate(dict[key], params) }}>
+      {children}
+    </I18nContext.Provider>
+  );
 }
 
 export function useI18n() {
