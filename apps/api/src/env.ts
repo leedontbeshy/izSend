@@ -1,4 +1,4 @@
-﻿import path from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 
@@ -14,12 +14,14 @@ type Env = {
   webOrigin: string;
   presignTtlSeconds: number;
   fileTtlDays: number;
+  maxFileBytes: number;
   cleanupIntervalMinutes: number;
   s3Bucket: string;
   awsRegion: string;
   s3Endpoint?: string;
   s3ForcePathStyle: boolean;
   neonConnectionString: string;
+  dbPoolMax: number;
 };
 
 function required(name: string): string {
@@ -47,12 +49,15 @@ export const env: Env = {
   webOrigin: process.env.WEB_ORIGIN ?? "http://localhost:5173",
   presignTtlSeconds: numberWithDefault("PRESIGN_TTL_SECONDS", 300),
   fileTtlDays: numberWithDefault("FILE_TTL_DAYS", 7),
+  maxFileBytes: numberWithDefault("MAX_FILE_BYTES", 50 * 1024 * 1024),
   cleanupIntervalMinutes: numberWithDefault("CLEANUP_INTERVAL_MINUTES", 60),
   s3Bucket: required("S3_BUCKET"),
-  awsRegion: process.env.AWS_REGION ?? required("AWS_REGION"),
+  awsRegion: required("AWS_REGION"),
   s3Endpoint: process.env.S3_ENDPOINT || undefined,
   s3ForcePathStyle: booleanWithDefault("S3_FORCE_PATH_STYLE", false),
-  neonConnectionString: required("NEON_CONNECTION_STRING")
+  neonConnectionString: required("NEON_CONNECTION_STRING"),
+  dbPoolMax: numberWithDefault("DB_POOL_MAX", 10)
 };
 
-export const MAX_FILE_BYTES = 50 * 1024 * 1024;
+/** @deprecated Import env.maxFileBytes instead */
+export const MAX_FILE_BYTES = env.maxFileBytes;

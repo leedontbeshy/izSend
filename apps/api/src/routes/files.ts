@@ -1,4 +1,4 @@
-﻿import type { FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { customAlphabet, nanoid } from "nanoid";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
@@ -84,9 +84,10 @@ function isExpired(file: FileRecord): boolean {
   return new Date(file.expires_at).getTime() < Date.now();
 }
 
+// Issue #4: filter deleted_at at SQL level
 async function getBySlug(slug: string): Promise<FileRecord | null> {
   const { rows } = await pool.query<FileRecord>(
-    "SELECT * FROM files WHERE slug = $1 LIMIT 1",
+    "SELECT * FROM files WHERE slug = $1 AND deleted_at IS NULL LIMIT 1",
     [slug]
   );
   return rows[0] ?? null;
@@ -94,7 +95,7 @@ async function getBySlug(slug: string): Promise<FileRecord | null> {
 
 async function getByCode(code: string): Promise<FileRecord | null> {
   const { rows } = await pool.query<FileRecord>(
-    "SELECT * FROM files WHERE code = $1 LIMIT 1",
+    "SELECT * FROM files WHERE code = $1 AND deleted_at IS NULL LIMIT 1",
     [code]
   );
   return rows[0] ?? null;
@@ -113,7 +114,52 @@ function publicMetadata(file: FileRecord) {
   };
 }
 
+// Issue #3: shared param schemas
+const slugParamSchema = {
+  type: "object",
+  required: ["slug"],
+  properties: {
+    slug: { type: "string", minLength: 1, maxLength: 64 }
+  }
+} as const;
+
+const codeParamSchema = {
+  type: "object",
+  required: ["code"],
+  properties: {
+    code: { type: "string", minLength: 8, maxLength: 8, pattern: "^[0-9A-Za-z]{8}$" }
+  }
+} as const;
+
+const idParamSchema = {
+  type: "object",
+  required: ["id"],
+  properties: {
+    id: {
+      type: "string",
+      minLength: 36,
+      maxLength: 36,
+      pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    }
+  }
+} as const;
+
+// Issue #2: explicit presign body schema
+const presignBodySchema = {
+  type: "object",
+  properties: {
+    passcode: { type: "string", minLength: 4, maxLength: 64 }
+  },
+  additionalProperties: false
+} as const;
+
 export async function filesRoutes(fastify: FastifyInstance) {
+  // Issue #7: public config endpoint – exposes only non-sensitive limits
+  fastify.get("/api/config", async () => ({
+    maxFileSizeBytes: env.maxFileBytes,
+    fileTtlDays: env.fileTtlDays
+  }));
+
   fastify.get("/api/health", async () => ({ ok: true }));
 
   function drainStream(stream: NodeJS.ReadableStream): Promise<void> {
@@ -231,11 +277,11 @@ export async function filesRoutes(fastify: FastifyInstance) {
         throw err;
       }
 
+      // Issue #12: codePath removed – frontend uses slugPath only
       return reply.send({
         ...publicMetadata(record),
         share: {
-          slugPath: `/f/${record.slug}`,
-          codePath: `/c/${record.code}`
+          slugPath: `/f/${record.slug}`
         }
       });
     }
@@ -244,6 +290,7 @@ export async function filesRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/files/slug/:slug",
     {
+      schema: { params: slugParamSchema },
       config: {
         rateLimit: {
           max: 120,
@@ -252,9 +299,9 @@ export async function filesRoutes(fastify: FastifyInstance) {
       }
     },
     async (request, reply) => {
-      const slug = String((request.params as any).slug);
+      const { slug } = request.params as { slug: string };
       const file = await getBySlug(slug);
-      if (!file || file.deleted_at) return reply.status(404).send({ error: "Not found" });
+      if (!file) return reply.status(404).send({ error: "Not found" });
       if (isExpired(file)) return reply.status(410).send({ error: "Expired" });
       return reply.send(publicMetadata(file));
     }
@@ -263,6 +310,7 @@ export async function filesRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/files/code/:code",
     {
+      schema: { params: codeParamSchema },
       config: {
         rateLimit: {
           max: 120,
@@ -271,9 +319,9 @@ export async function filesRoutes(fastify: FastifyInstance) {
       }
     },
     async (request, reply) => {
-      const code = String((request.params as any).code).toUpperCase();
-      const file = await getByCode(code);
-      if (!file || file.deleted_at) return reply.status(404).send({ error: "Not found" });
+      const { code } = request.params as { code: string };
+      const file = await getByCode(code.toUpperCase());
+      if (!file) return reply.status(404).send({ error: "Not found" });
       if (isExpired(file)) return reply.status(410).send({ error: "Expired" });
       return reply.send(publicMetadata(file));
     }
@@ -282,6 +330,10 @@ export async function filesRoutes(fastify: FastifyInstance) {
   fastify.post(
     "/api/files/:id/presign",
     {
+      schema: {
+        params: idParamSchema,
+        body: presignBodySchema
+      },
       config: {
         rateLimit: {
           max: 60,
@@ -290,13 +342,16 @@ export async function filesRoutes(fastify: FastifyInstance) {
       }
     },
     async (request, reply) => {
-      const id = String((request.params as any).id);
-      const body = (request.body ?? {}) as any;
-      const passcode = body?.passcode ? String(body.passcode) : undefined;
+      const { id } = request.params as { id: string };
+      const body = request.body as { passcode?: string };
+      const passcode = body?.passcode ?? undefined;
 
-      const { rows } = await pool.query<FileRecord>("SELECT * FROM files WHERE id = $1 LIMIT 1", [id]);
+      const { rows } = await pool.query<FileRecord>(
+        "SELECT * FROM files WHERE id = $1 AND deleted_at IS NULL LIMIT 1",
+        [id]
+      );
       const file = rows[0];
-      if (!file || file.deleted_at) return reply.status(404).send({ error: "Not found" });
+      if (!file) return reply.status(404).send({ error: "Not found" });
       if (isExpired(file)) return reply.status(410).send({ error: "Expired" });
 
       if (file.passcode_hash) {
@@ -305,8 +360,10 @@ export async function filesRoutes(fastify: FastifyInstance) {
         if (!ok) return reply.status(403).send({ error: "Invalid passcode" });
       }
 
+      // Issue #5: pass original filename for Content-Disposition
       const url = await presignGetObject({
         key: file.s3_key,
+        filename: file.original_name,
         expiresInSeconds: Math.max(10, env.presignTtlSeconds)
       });
 

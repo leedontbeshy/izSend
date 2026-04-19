@@ -37,10 +37,27 @@ export async function deleteObject(key: string) {
   );
 }
 
-export async function presignGetObject(params: { key: string; expiresInSeconds: number }) {
+/**
+ * Encode a filename for use in a Content-Disposition header.
+ * Falls back to ASCII-safe name while preserving UTF-8 via RFC 5987.
+ */
+function contentDispositionAttachment(filename: string): string {
+  // Strip control characters
+  const safe = filename.replace(/[\x00-\x1f\x7f]/g, "");
+  const asciiOnly = safe.replace(/[^\x20-\x7e]/g, "_");
+  // Always include both for compatibility: filename= (ASCII) and filename*= (UTF-8)
+  return `attachment; filename="${asciiOnly}"; filename*=UTF-8''${encodeURIComponent(safe)}`;
+}
+
+export async function presignGetObject(params: {
+  key: string;
+  filename: string;
+  expiresInSeconds: number;
+}) {
   const command = new GetObjectCommand({
     Bucket: env.s3Bucket,
-    Key: params.key
+    Key: params.key,
+    ResponseContentDisposition: contentDispositionAttachment(params.filename)
   });
 
   return getSignedUrl(s3, command, { expiresIn: params.expiresInSeconds });

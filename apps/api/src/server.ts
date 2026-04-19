@@ -1,8 +1,8 @@
-﻿import Fastify from "fastify";
+import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
-import { env, MAX_FILE_BYTES } from "./env.js";
+import { env } from "./env.js";
 import { filesRoutes } from "./routes/files.js";
 import { startCleanupJob } from "./jobs/cleanupExpired.js";
 
@@ -18,7 +18,7 @@ await fastify.register(cors, {
 
 await fastify.register(multipart, {
   limits: {
-    fileSize: MAX_FILE_BYTES
+    fileSize: env.maxFileBytes
   }
 });
 
